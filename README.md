@@ -13,5 +13,7 @@ python main.py --audio path_to_your_audio_file.wav
 ```
 
 ## 必要なパッケージ
+```
 pip install openai==0.28
 pip install SpeechRecongnition
+```
