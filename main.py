@@ -1,44 +1,53 @@
-import argparse
+import requests
+from bs4 import BeautifulSoup
 import openai
-import speech_recognition as sr
+
+# GoogleのニュースのRSSフィードのURLを指定します。
+url = "https://news.google.com/rss?hl=ja&gl=JP&ceid=JP:ja"
+
+# URLからデータを取得します。
+response = requests.get(url)
+
+# レスポンスのテキストを解析します。
+soup = BeautifulSoup(response.text, 'xml')
+
+# XMLファイルとして保存します。
+with open("google_news.xml", "w", encoding="utf-8") as f:
+    f.write(str(soup.prettify()))
 
 # OpenAIのAPIキーを設定します。
 openai.api_key = ''
 
-def summarize_text(text):
-    response = openai.ChatCompletion.create(
-      model="gpt-3.5-turbo",
-      messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": text},
-            {"role": "assistant", "content": "上記のテキストを要約してください。"},
-        ]
-    )
-    return response['choices'][0]['message']['content']
+# XMLファイルからニュース記事を読み込みます。
+with open("google_news.xml", "r", encoding="utf-8") as f:
+    content = f.read()
 
-def transcribe_audio(audio_file):
-    r = sr.Recognizer()
-    with sr.AudioFile(audio_file) as source:
-        audio_data = r.record(source)
-        text = r.recognize_google(audio_data, language='ja-JP')
-        return text
+soup = BeautifulSoup(content, 'xml')
+news_item = soup.find('item')
 
-def main():
-    parser = argparse.ArgumentParser(description='Summarize text or transcribe and summarize audio.')
-    parser.add_argument('--text', help='The text to summarize.')
-    parser.add_argument('--audio', help='The audio file to transcribe and summarize.')
-    args = parser.parse_args()
+# ニュース記事のタイトルと説明を取得します。
+title = news_item.title.text
+description = news_item.description.text
 
-    if args.text:
-        summary = summarize_text(args.text)
-        print(f"要約: {summary}")
-    elif args.audio:
-        text = transcribe_audio(args.audio)
-        summary = summarize_text(text)
-        print(f"元のテキスト: {text}")
-        print(f"要約: {summary}")
-    else:
-        print("テキストまたは音声ファイルを指定してください。")
+# 記事の本文を結合します。
+full_text = title + " " + description
 
-if __name__ == "__main__":
-    main()
+print(f"Title of the news article: {title}\n")
+
+# GPT-3.5-turboを使用して記事を要約します。
+response = openai.ChatCompletion.create(
+  model="gpt-3.5-turbo",
+  messages=[
+        {"role": "system", "content": "あなたはニュース記事を要約するための助け役です。"},
+        {"role": "user", "content": f"次のニュース記事を要約してください: {full_text}"}
+    ]
+)
+
+summary = response['choices'][0]['message']['content']
+
+print(f"Summary of the news article: {summary}")
+
+# 結果をテキストファイルにも出力します。
+with open("summary.txt", "w", encoding="utf-8") as f:
+    f.write(f"Title of the news article: {title}\n")
+    f.write(f"Summary of the news article: {summary}")
