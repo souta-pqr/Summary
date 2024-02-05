@@ -2,7 +2,7 @@
 このプログラムは，テキストまたは，音声ファイルの内容を要約します．OpenAiのGPT3-5-turboモデルとGoogleのSpeech Recognition APIを使用しています．
 
 ## 使用方法
-このプログラムはコマンドラインから実行します．
+このプログラムはコマンドラインから実行します．<br>
 テキストファイルを要約する例：
 ```
 python main.py --text path_to_your_text_file.txt
