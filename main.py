@@ -3,7 +3,7 @@ import openai
 import speech_recognition as sr
 
 # OpenAIのAPIキーを設定します。
-openai.api_key = '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'
+openai.api_key = ''
 
 def summarize_text(text):
     response = openai.ChatCompletion.create(
