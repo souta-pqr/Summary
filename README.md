@@ -7,12 +7,13 @@ GoogleのRSSフィードから最新のニュースを取得し、OpenAIのGPT-3
 git clone https://github.com/VOICEVOX/voicevox_engine.git
 ```
 - クローンした後、そのディレクトリに移動し、Dockerコンテナを作成して実行。
-### CPUを使用する場合
+  
+- CPUを使用する場合
 ```
 docker pull voicevox/voicevox_engine:cpu-ubuntu20.04-latest
 docker run --rm -p '127.0.0.1:50021:50021' voicevox/voicevox_engine:cpu-ubuntu20.04-latest
 ```
-### GPUを使用する場合
+- GPUを使用する場合
 ```
 docker pull voicevox/voicevox_engine:nvidia-ubuntu20.04-latest
 docker run --rm --gpus all -p '127.0.0.1:50021:50021' voicevox/voicevox_engine:nvidia-ubuntu20.04-latest
