@@ -5,75 +5,79 @@ from bs4 import BeautifulSoup
 import openai
 import os
 
-# GoogleのニュースのRSSフィードのURLを指定します。
+def fetch_and_save_xml(url, filename):
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, 'xml')
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(str(soup.prettify()))
+
+def read_and_parse_xml(filename):
+    with open(filename, "r", encoding="utf-8") as f:
+        content = f.read()
+    soup = BeautifulSoup(content, 'xml')
+    news_items = soup.find_all('item')
+    return [(item.title.text, item.description.text) for item in news_items]
+
+def summarize_text(full_text):
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "あなたはニュース記事を要約するための助け役です。"},
+                {"role": "user", "content": f"次のニュース記事を要約してください: {full_text}"}
+            ]
+        )
+        return response['choices'][0]['message']['content']
+    except Exception as e:
+        print(f"Error occurred while summarizing text: {e}")
+        return None
+
+def save_summary(summary, filename):
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(summary)
+
+def execute_command(command):
+    os.system(command)
+
+def play_audio(filename):
+    song = AudioSegment.from_wav(filename)
+    play(song)
+
+# パラメータ設定
 url = "https://news.google.com/rss?hl=ja&gl=JP&ceid=JP:ja"
+xml_filename = "google_news.xml"
+summary_filename = "summary.txt"
+audio_filename = "audio.wav"
 
-# URLからデータを取得します。
-response = requests.get(url)
+# xmlファイルの取得と保存
+fetch_and_save_xml(url, xml_filename)
 
-# レスポンスのテキストを解析します。
-soup = BeautifulSoup(response.text, 'xml')
+# xmlファイルの読み込みと解析
+news_items = read_and_parse_xml(xml_filename)
 
-# XMLファイルとして保存します。
-with open("google_news.xml", "w", encoding="utf-8") as f:
-   f.write(str(soup.prettify()))
+while True:
+    # ニュース記事の選択
+    for i, (title, _) in enumerate(news_items):
+        print(f"{i+1}: {title}")
+    selected_index = int(input("Please enter the number of the news you want to summarize (or 0 to exit): ")) - 1
+    if selected_index == -1:
+        break
 
-# OpenAIのAPIキーを設定します。
-openai.api_key = ''
+    # 要約
+    openai.api_key = ''
+    title, description = news_items[selected_index]
+    full_text = title + " " + description
+    summary = summarize_text(full_text)
+    if summary is None:
+        continue
+    print(f"Summary of the news article: {summary}")
 
-# XMLファイルからニュース記事を読み込みます。
-with open("google_news.xml", "r", encoding="utf-8") as f:
-   content = f.read()
+    save_summary(summary, summary_filename)
 
-soup = BeautifulSoup(content, 'xml')
-news_item = soup.find('item')
+    # 音声合成
+    execute_command(f'echo -n "$(cat {summary_filename})" >text.txt')
+    execute_command('curl -s -X POST "127.0.0.1:50021/audio_query?speaker=3" --get --data-urlencode text@text.txt > query.json')
+    execute_command('curl -s -H "Content-Type: application/json" -X POST -d @query.json "127.0.0.1:50021/synthesis?speaker=3" > ' + audio_filename)
 
-# ニュース記事のタイトルと説明を取得します。
-title = news_item.title.text
-description = news_item.description.text
-
-# 記事の本文を結合します。
-full_text = title + " " + description
-
-print(f"Title of the news article: {title}\n")
-
-# GPT-3.5-turboを使用して記事を要約します。
-response = openai.ChatCompletion.create(
- model="gpt-3.5-turbo",
- messages=[
-       {"role": "system", "content": "あなたはニュース記事を要約するための助け役です。"},
-       {"role": "user", "content": f"次のニュース記事を要約してください: {full_text}"}
-   ]
-)
-
-summary = response['choices'][0]['message']['content']
-
-print(f"Summary of the news article: {summary}")
-
-# 結果をテキストファイルにも出力します。
-with open("summary.txt", "w", encoding="utf-8") as f:
-   f.write(summary)  # "Summary of the news article: "を削除
-
-# summary.txtの内容を音声合成するためのコマンドを作成します。
-command = 'echo -n "$(cat summary.txt)" >text.txt'
-
-# コマンドを実行します。
-os.system(command)
-
-# 音声合成のためのクエリを作成します。
-command = 'curl -s -X POST "127.0.0.1:50021/audio_query?speaker=3" --get --data-urlencode text@text.txt > query.json'
-
-# コマンドを実行します。
-os.system(command)
-
-# 音声合成を実行します。
-command = 'curl -s -H "Content-Type: application/json" -X POST -d @query.json "127.0.0.1:50021/synthesis?speaker=3" > audio.wav'
-
-# コマンドを実行します。
-os.system(command)
-
-# wavファイルを開く
-song = AudioSegment.from_wav("audio.wav")
-
-# 音声を再生
-play(song)
+    # 音声合成の結果を再生
+    play_audio(audio_filename)
